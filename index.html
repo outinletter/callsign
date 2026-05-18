@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹 오프라인 콜사인 디텍터</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: background-color 0.3s ease;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #eee;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: orange;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0 20px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        button.listening {
+            background-color: #ff9500;
+        }
+        .result-box {
+            margin-top: 25px;
+            text-align: left;
+        }
+        .result-content {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            min-height: 60px;
+            border: 1px solid #e5e5e5;
+            font-size: 15px;
+            word-break: break-all;
+        }
+        /* 콜사인 감지 시 비상 연출 스타일 */
+        body.triggered {
+            background-color: #cc0000;
+        }
+        body.triggered .container {
+            background-color: #b30000;
+            color: white;
+        }
+        body.triggered .result-content {
+            background-color: #800000;
+            color: white;
+            border-color: #660000;
+        }
+        body.triggered input {
+            background-color: #ff3b30;
+            color: white;
+            border-color: #ff453a;
+        }
+        .alert-text {
+            display: none;
+            color: #ff3b30;
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 18px;
+        }
+        body.triggered .alert-text {
+            display: block;
+            color: white;
+        }
+    </style>
+    <!-- sherpa-onnx 웹 전용 가벼운 WebAssembly 및 스트리밍 라이브러리 로드 -->
+    <script src="https://cdn.jsdelivr.net/npm/sherpa-onnx-wasm@1.10.0/dist/sherpa-onnx-wasm.js"></script>
+</head>
+<body>
+
+<div class="container" id="appContainer">
+    <div class="status-badge">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">로컬 AI 모델 로딩 중...</span>
+    </div>
+
+    <label for="callsign" style="font-weight: bold; display: block; text-align: left;">내 콜사인 설정</label>
+    <input type="text" id="callsign" placeholder="예: korean air 123 또는 hl7754">
+
+    <button id="micBtn" disabled>감지 시작</button>
+
+    <div class="result-box">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">실시간 무전 자막:</label>
+        <div class="result-content" id="resultText">인식 대기 중...</div>
+    </div>
+    
+    <div class="alert-text" id="alertText">🚨 콜사인이 감지되었습니다! 🚨</div>
+</div>
+
+<script>
+    let recognizer = null;
+    let stream = null;
+    let audioContext = null;
+    let mediaStreamSource = null;
+    let scriptProcessor = null;
+    
+    let isListening = false;
+    let targetCallSign = "";
+
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const micBtn = document.getElementById('micBtn');
+    const callsignInput = document.getElementById('callsign');
+    const resultText = document.getElementById('resultText');
+
+    // 1. 페이지 로드 시 오프라인 Wasm 엔진 초기화 및 모델 에셋 로드
+    async function initSherpaOnnx() {
+        try {
+            // 주소에서 초경량 zipformer 모델과 토큰을 브라우저 메모리에 캐싱/로드 (처음 1회만 인터넷 필요, 이후 오프라인 가능)
+            const config = {
+                modelConfig: {
+                    transducer: {
+                        encoder: 'https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-02-21/resolve/main/encoder-epoch-99-img-and-calib-by-asg.onnx',
+                        decoder: 'https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-02-21/resolve/main/decoder-epoch-99-img-and-calib-by-asg.onnx',
+                        joiner: 'https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-02-21/resolve/main/joiner-epoch-99-img-and-calib-by-asg.onnx',
+                    },
+                    tokens: 'https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-02-21/resolve/main/tokens.txt',
+                    modelType: 'zipformer',
+                },
+                decodingMethod: 'greedy_search',
+            };
+
+            // 라이브러리가 로드되었는지 확인 후 초기화
+            recognizer = await CreateOnlineRecognizer(config);
+            
+            // 준비 완료 상태 UI 변경
+            statusDot.style.backgroundColor = 'green';
+            statusText.innerText = '오프라인 AI 준비 완료';
+            micBtn.disabled = false;
+        } catch (e) {
+            statusText.innerText = '모델 로드 실패: ' + e;
+            console.error(e);
+        }
+    }
+
+    // 2. 마이크 오디오 실시간 스트리밍 캡처 및 AI 주입
+    async function startListening() {
+        targetCallSign = callsignInput.value.trim().toLowerCase();
+        if (!targetCallSign) {
+            alert("콜사인을 먼저 입력해 주세요.");
+            return;
+        }
+
+        // 브라우저 마이크 권한 요청
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        
+        // 오디오 샘플레이트를 AI 모델 기준인 16,000Hz로 재조정(Resampling)
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
+        
+        // 인식용 AI 스트림 생성
+        stream = recognizer.createStream();
+
+        // 4096 버퍼 단위로 마이크 음성 추출
+        scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+        scriptProcessor.onaudioprocess = (e) => {
+            if (!isListening) return;
+            
+            const samples = e.inputBuffer.getChannelData(0); // Float32Array 추출
+            recognizer.acceptWaveform(stream, samples);
+
+            // 음성 데이터 디코딩 루프
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream);
+            }
+
+            // 실시간 자막 추출
+            const text = recognizer.getResult(stream).text.toLowerCase();
+            if (text) {
+                resultText.innerText = text;
+                checkCallSign(text);
+            }
+        };
+
+        mediaStreamSource.connect(scriptProcessor);
+        scriptProcessor.connect(audioContext.destination);
+
+        isListening = true;
+        micBtn.innerText = "감지 중지";
+        micBtn.classList.add('listening');
+        callsignInput.disabled = true;
+    }
+
+    // 3. 콜사인 포함 여부 대조 및 시각 반응
+    void function checkCallSign(text) {
+        if (text.includes(targetCallSign)) {
+            document.body.classList.add('triggered'); // 화면 전체를 빨갛게 반짝임
+            
+            // 스트림 리셋하여 중복 반응 방지
+            recognizer.reset(stream);
+            
+            // 3초 후 경고 해제
+            setTimeout(() => {
+                document.body.classList.remove('triggered');
+            }, 3000);
+        }
+    }
+
+    // 4. 감지 중지 및 마이크 해제
+    function stopListening() {
+        isListening = false;
+        micBtn.innerText = "감지 시작";
+        micBtn.classList.remove('listening');
+        callsignInput.disabled = false;
+
+        if (scriptProcessor) scriptProcessor.disconnect();
+        if (mediaStreamSource) mediaStreamSource.disconnect();
+        if (audioContext) audioContext.close();
+        if (stream) stream.free();
+    }
+
+    // 버튼 클릭 이벤트 바인딩
+    micBtn.addEventListener('click', () => {
+        if (isListening) {
+            stopListening();
+        } else {
+            startListening();
+        }
+    });
+
+    // 앱 실행 시 AI 로드 시작
+    window.onload = initSherpaOnnx;
+</script>
+
+</body>
+</html>
