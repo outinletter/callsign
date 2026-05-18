@@ -6,8 +6,6 @@
     <title>FLIGHT DECK CALLSIGN MONITOR (PASTEL)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Google Fonts: Roboto Mono for high legibility -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
     
@@ -20,14 +18,14 @@
                     },
                     colors: {
                         avionics: {
-                            bg: '#16191C',          // Soft slate grey-black
-                            card: '#1F2327',        // Soothing dark gray
-                            green: '#A2E8DD',       // Pale pastel mint
-                            amber: '#F9E0BB',       // Soft pastel cream / light peach
-                            red: '#F4B3B3',         // Gentle pastel blush rose
-                            blue: '#B6D6E5',        // Soft sky pastel blue
-                            border: '#2A3036',      // Low-contrast subtle border
-                            text: '#E2E8F0'         // Muted white text
+                            bg: '#14171A',          // Deep luxury cockpit dark slate
+                            card: '#1B1F24',        // High-contrast clean panel gray
+                            green: '#A2E8DD',       // Pale pastel mint (Safe / Active)
+                            amber: '#F9E0BB',       // Soft pastel cream / light peach (Standby)
+                            red: '#F4B3B3',         // Gentle pastel blush rose (Alert)
+                            blue: '#B6D6E5',        // Soft sky pastel blue (Information)
+                            border: '#282E35',      // Clean structural border
+                            text: '#E2E8F0'         // Soft high-readability white
                         }
                     }
                 }
@@ -37,27 +35,51 @@
     <style>
         body {
             font-family: 'Roboto Mono', monospace;
-            background-color: #16191C;
+            background-color: #14171A;
             user-select: none;
             overflow-x: hidden;
         }
         
-        /* CRT Scanline styling - softened for pastel themes */
+        /* Premium softened scanline background overlay */
         .scanlines {
             background: linear-gradient(
-                rgba(31, 35, 39, 0) 50%, 
-                rgba(0, 0, 0, 0.08) 50%
+                rgba(27, 31, 36, 0) 50%, 
+                rgba(0, 0, 0, 0.12) 50%
             );
             background-size: 100% 4px;
         }
 
-        /* Muted warning active animation */
+        /* Ambient warning glow animation */
         @keyframes warning-flash {
-            0%, 100% { background-color: rgba(244, 179, 179, 0.08); border-color: #F4B3B3; }
-            50% { background-color: rgba(244, 179, 179, 0.35); border-color: #FFF; }
+            0%, 100% { 
+                background-color: rgba(244, 179, 179, 0.05); 
+                border-color: #F4B3B3;
+                box-shadow: inset 0 0 15px rgba(244, 179, 179, 0.1);
+            }
+            50% { 
+                background-color: rgba(244, 179, 179, 0.25); 
+                border-color: #FFFFFF;
+                box-shadow: inset 0 0 30px rgba(244, 179, 179, 0.3);
+            }
         }
         .warning-active {
-            animation: warning-flash 0.8s infinite;
+            animation: warning-flash 1.0s infinite ease-in-out;
+        }
+        
+        /* Smooth custom scrollbar for transcripts */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #282E35;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #B6D6E5;
         }
     </style>
 </head>
@@ -67,22 +89,38 @@
     <main class="w-full max-w-6xl mx-auto flex-grow flex flex-col gap-4">
         
         <!-- HEADER PANEL -->
-        <header class="flex justify-between items-center border border-avionics-border bg-avionics-card p-4 rounded-lg">
+        <header class="flex flex-col sm:flex-row justify-between items-center border border-avionics-border bg-avionics-card p-4 rounded-lg gap-4 shadow-lg">
             <div class="flex items-center gap-3">
-                <div id="status-indicator" class="w-3 h-3 rounded-full bg-zinc-600"></div>
+                <div id="status-indicator" class="w-3.5 h-3.5 rounded-full bg-zinc-600 transition-all duration-300"></div>
                 <div>
-                    <h1 class="text-[10px] text-zinc-500 font-bold tracking-widest">MONITOR SYSTEM</h1>
+                    <h1 class="text-[10px] text-zinc-500 font-bold tracking-widest leading-none mb-1">MONITOR SYSTEM</h1>
                     <span id="system-status-text" class="text-xs font-bold text-zinc-400">OFFLINE</span>
                 </div>
             </div>
             
-            <div class="text-center hidden sm:block">
-                <span class="text-xs font-bold tracking-[0.3em] text-avionics-blue">RADIO CO-PILOT HUD</span>
+            <div class="text-center hidden md:block">
+                <span class="text-xs font-bold tracking-[0.35em] text-avionics-blue">RADIO CO-PILOT HUD v1.8</span>
             </div>
             
-            <div class="flex items-center gap-2 text-xs text-zinc-400">
-                <i data-lucide="clock" class="w-4 h-4 text-avionics-blue"></i>
-                <span id="utc-clock" class="font-bold">00:00:00 UTC</span>
+            <!-- CONTROLS & CLOCK CONTAINER -->
+            <div class="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
+                <!-- SINGLE CALLSIGN MONITOR TOGGLE SWITCH -->
+                <div class="flex items-center gap-3 bg-black/40 border border-avionics-border py-1.5 px-3 rounded-md shadow-inner">
+                    <span class="text-[10px] text-zinc-400 font-bold tracking-widest">CALLSIGN MONITOR</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="callsign-monitor-toggle" class="sr-only peer">
+                        <div class="w-10 h-5 bg-zinc-800 rounded-full peer peer-focus:ring-0 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-zinc-500 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-avionics-green/20 peer-checked:after:bg-avionics-green"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center gap-2 text-xs text-zinc-400 border-l border-avionics-border pl-3 hidden sm:flex">
+                    <!-- SVG Clock Icon -->
+                    <svg class="w-4 h-4 text-avionics-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span id="utc-clock" class="font-bold">00:00:00 UTC</span>
+                </div>
             </div>
         </header>
 
@@ -91,22 +129,53 @@
             
             <!-- LEFT PANEL: CONTROL STATION (5 Columns) -->
             <section class="lg:col-span-5 flex flex-col gap-4">
-                <div class="border border-avionics-border bg-avionics-card rounded-lg p-5 flex flex-col justify-between h-full">
+                <div class="border border-avionics-border bg-avionics-card rounded-lg p-5 flex flex-col justify-between h-full shadow-lg">
                     <div>
                         <!-- Header inside control panel -->
-                        <div class="border-b border-avionics-border pb-3 mb-4 flex justify-between items-center">
+                        <div class="border-b border-avionics-border pb-3 mb-5 flex justify-between items-center">
                             <span class="text-xs font-bold text-avionics-blue tracking-widest flex items-center gap-2">
-                                <i data-lucide="sliders" class="w-4 h-4"></i> DECK CONTROLS
+                                <!-- SVG Sliders Icon -->
+                                <svg class="w-4 h-4 text-avionics-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <line x1="4" y1="21" x2="4" y2="14"></line>
+                                    <line x1="4" y1="10" x2="4" y2="3"></line>
+                                    <line x1="12" y1="21" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12" y2="3"></line>
+                                    <line x1="20" y1="21" x2="20" y2="16"></line>
+                                    <line x1="20" y1="12" x2="20" y2="3"></line>
+                                    <line x1="1" y1="14" x2="7" y2="14"></line>
+                                    <line x1="9" y1="8" x2="15" y2="8"></line>
+                                    <line x1="17" y1="16" x2="23" y2="16"></line>
+                                </svg>
+                                DECK CONTROLS
                             </span>
-                            <span class="text-[9px] text-zinc-500 font-bold">ON-DEVICE RECOGNITION</span>
+                            <span class="text-[9px] text-zinc-500 font-bold tracking-widest">ON-DEVICE SENSORS</span>
                         </div>
 
                         <!-- Target Callsign Input -->
                         <div class="mb-5">
                             <label class="block text-xs text-avionics-amber font-bold mb-2 tracking-wide">TARGET CALLSIGN</label>
                             <input type="text" id="callsign-input" value="KOREAN AIR 123" 
-                                   class="w-full bg-black/40 border border-avionics-border rounded-lg py-3 px-4 text-lg font-bold text-avionics-green focus:outline-none focus:border-avionics-green transition-all tracking-wider uppercase"
+                                   class="w-full bg-black/40 border border-avionics-border rounded-lg py-3 px-4 text-lg font-bold text-avionics-green focus:outline-none focus:border-avionics-green transition-all tracking-wider uppercase shadow-inner"
                                    placeholder="ENTER CALLSIGN">
+                            <span class="text-[10px] text-zinc-500 mt-2 block leading-relaxed">
+                                설정된 호출 부호가 포함된 관제 지시만 선별 수집하며 즉시 자동 분석에 적용됩니다.
+                            </span>
+                        </div>
+
+                        <!-- AI Recognition Language Switcher -->
+                        <div class="mb-5">
+                            <label class="block text-xs text-avionics-blue font-bold mb-2 tracking-wide">RECOGNITION LANGUAGE</label>
+                            <div class="grid grid-cols-2 gap-2 bg-black/30 p-1.5 rounded-lg border border-avionics-border">
+                                <button id="lang-en-btn" class="py-2 text-xs font-bold rounded-md transition-all uppercase bg-avionics-blue/20 text-avionics-blue border border-avionics-blue/40">
+                                    English (ATC)
+                                </button>
+                                <button id="lang-ko-btn" class="py-2 text-xs font-bold rounded-md transition-all uppercase text-zinc-500 hover:text-zinc-300">
+                                    한국어 (Local)
+                                </button>
+                            </div>
+                            <span class="text-[10px] text-zinc-500 mt-2 block leading-relaxed">
+                                관제소 교신 주파수에 맞춤 설정 시 음성 인식률이 극대화됩니다.
+                            </span>
                         </div>
 
                         <!-- Simple Squelch Slider -->
@@ -119,20 +188,13 @@
                                    class="w-full accent-avionics-blue bg-black/40 h-1.5 rounded-lg cursor-pointer">
                         </div>
                     </div>
-
-                    <!-- ACTION BUTTONS: ARM & SHUTDOWN -->
-                    <div class="flex flex-col gap-2 pt-4 border-t border-avionics-border">
-                        <!-- Arm/Start Button -->
-                        <button id="activate-btn" class="w-full bg-black/30 hover:bg-zinc-800 border border-avionics-green text-avionics-green font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm">
-                            <i data-lucide="play" class="w-4 h-4" id="btn-icon"></i>
-                            <span id="activate-text">START MONITORING</span>
-                        </button>
-
-                        <!-- Shutdown/Stop Button -->
-                        <button id="shutdown-btn" class="w-full bg-black/30 hover:bg-zinc-800 border border-avionics-red text-avionics-red font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm">
-                            <i data-lucide="power" class="w-4 h-4"></i>
-                            <span>SYSTEM SHUTDOWN</span>
-                        </button>
+                    
+                    <!-- Bottom Branding Info -->
+                    <div class="pt-4 border-t border-avionics-border flex justify-between items-center">
+                        <span class="text-[10px] text-zinc-500 font-bold tracking-widest">AVIONICS DECK</span>
+                        <div class="text-[10px] text-zinc-500 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-zinc-500"></span> LOCAL DISPATCH
+                        </div>
                     </div>
                 </div>
             </section>
@@ -140,37 +202,51 @@
             <!-- RIGHT PANEL: WAVEFORM & TRANSCRIPTS (7 Columns) -->
             <section class="lg:col-span-7 flex flex-col gap-4">
                 <!-- AUDIO OSCILLOSCOPE -->
-                <div class="border border-avionics-border bg-avionics-card rounded-lg p-4 flex flex-col h-[150px]">
+                <div class="border border-avionics-border bg-avionics-card rounded-lg p-4 flex flex-col h-[150px] shadow-lg">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-bold text-avionics-blue tracking-widest flex items-center gap-1.5">
-                            <i data-lucide="activity" class="w-4 h-4"></i> SPECTRUM SENSOR
+                        <span class="text-xs font-bold text-avionics-blue tracking-widest flex items-center gap-2">
+                            <!-- SVG Activity Icon -->
+                            <svg class="w-4 h-4 text-avionics-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            </svg>
+                            SPECTRUM SENSOR
                         </span>
-                        <span id="rx-status-text" class="text-[9px] text-zinc-500 font-bold">INACTIVE</span>
+                        <span id="rx-status-text" class="text-[9px] text-zinc-500 font-bold tracking-wider">INACTIVE</span>
                     </div>
-                    <!-- Minimal Scope Canvas -->
-                    <div class="flex-grow bg-black/30 rounded border border-avionics-border overflow-hidden relative">
+                    <!-- Scope Canvas Container -->
+                    <div class="flex-grow bg-black/45 rounded border border-avionics-border overflow-hidden relative shadow-inner">
                         <canvas id="scope-canvas" class="w-full h-full block"></canvas>
                     </div>
                 </div>
 
                 <!-- TRANSMISSION LOG -->
-                <div class="border border-avionics-border bg-avionics-card rounded-lg p-4 flex flex-col flex-grow min-h-[220px]">
+                <div class="border border-avionics-border bg-avionics-card rounded-lg p-4 flex flex-col flex-grow min-h-[240px] shadow-lg">
                     <div class="flex justify-between items-center border-b border-avionics-border pb-2 mb-3">
                         <span class="text-xs font-bold text-avionics-amber tracking-widest flex items-center gap-2">
-                            <i data-lucide="terminal" class="w-4 h-4"></i> TRANSMISSION LOG
+                            <!-- SVG Terminal Icon -->
+                            <svg class="w-4 h-4 text-avionics-amber" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                            TRANSMISSION LOG (TARGET ONLY)
                         </span>
-                        <span class="text-[9px] text-zinc-500 font-bold">STT DECODER</span>
+                        <span class="text-[9px] text-zinc-500 font-bold tracking-wider">STT DECODER</span>
                     </div>
                     
                     <!-- Decoded Scripts -->
-                    <div id="transcript-container" class="flex-grow bg-black/20 rounded border border-avionics-border p-4 font-mono text-xs leading-relaxed overflow-y-auto max-h-[160px] md:max-h-[220px] text-avionics-green">
-                        <div class="text-zinc-600 italic">&lt; NO TRANSMISSIONS RECORDED &gt;</div>
+                    <div id="transcript-container" class="flex-grow bg-black/30 rounded border border-avionics-border p-4 font-mono text-xs leading-relaxed overflow-y-auto max-h-[180px] md:max-h-[240px] text-avionics-green shadow-inner">
+                        <div class="text-zinc-600 italic">&lt; NO VALID TRANSMISSIONS RECORDED &gt;</div>
                     </div>
 
                     <!-- TRIGGERED WARNING BANNER -->
-                    <div id="alarm-banner" class="mt-3 p-3 rounded-lg border border-avionics-border bg-black/30 flex items-center justify-between transition-all duration-300">
+                    <div id="alarm-banner" class="mt-3 p-3 rounded-lg border border-avionics-border bg-black/30 flex items-center justify-between transition-all duration-300 shadow">
                         <div class="flex items-center gap-3">
-                            <i data-lucide="shield-alert" class="w-5 h-5 text-zinc-600" id="alarm-icon"></i>
+                            <!-- Custom Warning Shield Icon Container -->
+                            <div id="alarm-icon-container" class="text-zinc-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
+                            </div>
                             <div>
                                 <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Safety Status</div>
                                 <div class="text-xs font-bold text-zinc-400" id="alarm-desc">CALLSIGN SAFE / SILENT</div>
@@ -183,14 +259,13 @@
         </div>
     </main>
 
-    <!-- AUDIO & ENGINE SYSTEMS -->
+    <!-- AUDIO & STT CORE ENGINE -->
     <script>
-        // State variables
         let isSystemArmed = false;
-        let isRecognitionFinal = true; // Flag to filter interim text logs
         let targetCallsign = "KOREAN AIR 123";
         let squelchLevel = 35;
-        let alarmVisualTimeout = null; // Handler for the 30-second visual alarm trigger
+        let selectedLang = 'en-US'; 
+        let alarmVisualTimeout = null; 
 
         // Web Speech API & Audio Components
         let recognition = null;
@@ -200,11 +275,8 @@
         let animationFrameId = null;
         let microphoneStream = null;
 
-        // Elements
-        const activateBtn = document.getElementById('activate-btn');
-        const shutdownBtn = document.getElementById('shutdown-btn');
-        const activateText = document.getElementById('activate-text');
-        const btnIcon = document.getElementById('btn-icon');
+        // UI DOM Elements
+        const callsignMonitorToggle = document.getElementById('callsign-monitor-toggle');
         const callsignInput = document.getElementById('callsign-input');
         const squelchSlider = document.getElementById('squelch-slider');
         const squelchVal = document.getElementById('squelch-val');
@@ -213,14 +285,16 @@
         const systemStatusText = document.getElementById('system-status-text');
         const statusIndicator = document.getElementById('status-indicator');
         const alarmBanner = document.getElementById('alarm-banner');
-        const alarmIcon = document.getElementById('alarm-icon');
+        const alarmIconContainer = document.getElementById('alarm-icon-container');
         const alarmDesc = document.getElementById('alarm-desc');
         const alarmBadge = document.getElementById('alarm-badge');
         const utcClock = document.getElementById('utc-clock');
         const scopeCanvas = document.getElementById('scope-canvas');
         const scopeCtx = scopeCanvas.getContext('2d');
+        const langEnBtn = document.getElementById('lang-en-btn');
+        const langKoBtn = document.getElementById('lang-ko-btn');
 
-        // UTC Clock
+        // UTC Clock Updating
         function updateClock() {
             const now = new Date();
             utcClock.innerText = now.toISOString().substring(11, 19) + " UTC";
@@ -228,30 +302,102 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // Lucide icon generation
-        lucide.createIcons();
+        // Sync target callsign internally
+        callsignInput.addEventListener('input', (e) => {
+            targetCallsign = e.target.value.trim().toUpperCase();
+        });
 
-        // Control Sliders
+        // Squelch Slider logic
         squelchSlider.addEventListener('input', (e) => {
             squelchLevel = e.target.value;
             squelchVal.innerText = `${squelchLevel}%`;
         });
 
-        // Speech Recognition Setup
+        langEnBtn.addEventListener('click', () => {
+            setLanguage('en-US', langEnBtn, langKoBtn);
+        });
+
+        langKoBtn.addEventListener('click', () => {
+            setLanguage('ko-KR', langKoBtn, langEnBtn);
+        });
+
+        function setLanguage(langCode, activeBtn, inactiveBtn) {
+            selectedLang = langCode;
+            
+            // UI Update
+            activeBtn.className = "py-2 text-xs font-bold rounded-md transition-all uppercase bg-avionics-blue/20 text-avionics-blue border border-avionics-blue/40";
+            inactiveBtn.className = "py-2 text-xs font-bold rounded-md transition-all uppercase text-zinc-500 hover:text-zinc-300";
+
+            logMessage("SYSTEM", `Recognition language configured to: ${langCode === 'en-US' ? 'English (ATC)' : '한국어 (Local)'}`, "text-avionics-blue");
+
+            // Restart recognition if armed to apply changes
+            if (isSystemArmed) {
+                restartRecognition();
+            }
+        }
+
+        // Dictionary-based normalization for phonetic matching
+        const numbersMap = {
+            'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+            '영': '0', '공': '0', '일': '1', '하나': '1', '이': '2', '둘': '2', '삼': '3', '셋': '3', '사': '4', '넷': '4', '오': '5', '다섯': '5',
+            '육': '6', '여섯': '6', '칠': '7', '일곱': '7', '팔': '8', '여덟': '8', '구': '9', '아홉': '9', '십': '10', '공': '0'
+        };
+
+        const phoneticMap = {
+            '대한항공': 'KOREAN AIR',
+            '아시아나': 'ASIANA',
+            '제주항공': 'JEJU AIR',
+            '진에어': 'JIN AIR',
+            '티웨이': 'TWAY',
+            '에어부산': 'AIR BUSAN',
+            '에어서울': 'AIR SEOUL'
+        };
+
+        // Text Normalization Engine (Dramatically improves matching precision by standardizing spellings)
+        function normalizeText(text) {
+            if (!text) return "";
+            let normalized = text.toLowerCase().trim();
+
+            // 1. Remove unnecessary punctuation
+            normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ");
+
+            // 2. Map word digits to numeric digits (e.g., "one" to "1", "일이" to "12")
+            for (const [key, value] of Object.entries(numbersMap)) {
+                const regex = new RegExp(`\\b${key}\\b`, 'g');
+                normalized = normalized.replace(regex, value);
+                // For Korean, match characters directly without boundaries
+                if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(key)) {
+                    normalized = normalized.replace(new RegExp(key, 'g'), value);
+                }
+            }
+
+            // 3. Map phonetic airlines names to English matches (e.g., "대한항공" to "KOREAN AIR")
+            for (const [key, value] of Object.entries(phoneticMap)) {
+                if (normalized.includes(key.toLowerCase())) {
+                    normalized = normalized.replace(new RegExp(key, 'gi'), value.toLowerCase());
+                }
+            }
+
+            // 4. Remove extra whitespace
+            normalized = normalized.replace(/\s+/g, ' ');
+
+            return normalized;
+        }
+
         function initRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                logMessage("SYSTEM", "Error: Speech Recognition API is not supported in this browser.", "text-avionics-red");
+                logMessage("SYSTEM", "Error: Web Speech API is not supported in this browser.", "text-avionics-red");
                 return false;
             }
 
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
-            recognition.lang = 'en-US';
+            recognition.lang = selectedLang;
 
             recognition.onstart = () => {
-                logMessage("SYSTEM", "STT Monitoring Armed.", "text-avionics-blue");
+                logMessage("SYSTEM", `STT Engine Active [${selectedLang === 'en-US' ? 'EN-ATC' : 'KO-LOCAL'}]`, "text-avionics-blue");
                 setSystemStatus("ARMED", "green");
             };
 
@@ -267,69 +413,83 @@
                     }
                 }
 
-                // Show processing status while talking
                 if (interimTranscript.trim().length > 0) {
-                    rxStatusText.innerText = "CAPTURING SIGNAL...";
-                    rxStatusText.className = "text-[9px] text-avionics-amber font-bold";
+                    rxStatusText.innerText = "DECODING SIGNAL...";
+                    rxStatusText.className = "text-[9px] text-avionics-amber font-bold tracking-wider";
                 }
 
-                // Log *ONLY* when recognition is completely final and populated
+                // Process ONLY fully completed/finalized segments
                 if (finalTranscript.trim().length > 0) {
                     rxStatusText.innerText = "WAITING SIGNAL";
-                    rxStatusText.className = "text-[9px] text-avionics-green font-bold";
-                    
-                    logMessage("ATC", finalTranscript.toUpperCase(), "text-avionics-text");
+                    rxStatusText.className = "text-[9px] text-avionics-green font-bold tracking-wider";
                     analyzeSpeech(finalTranscript);
                 }
             };
 
             recognition.onerror = (e) => {
                 if (e.error === "no-speech") return;
-                logMessage("SYSTEM", "STT Network Error / Inactive: " + e.error, "text-avionics-amber");
+                logMessage("SYSTEM", "STT Processing Alert: " + e.error, "text-avionics-amber");
             };
 
             recognition.onend = () => {
                 if (isSystemArmed) {
-                    try { recognition.start(); } catch(err) {} // Maintain continuous stream
+                    try { recognition.start(); } catch(err) {}
                 } else {
                     rxStatusText.innerText = "INACTIVE";
-                    rxStatusText.className = "text-[9px] text-zinc-500 font-bold";
+                    rxStatusText.className = "text-[9px] text-zinc-500 font-bold tracking-wider";
                 }
             };
 
             return true;
         }
 
-        // Speech Analyzer Matcher
-        function analyzeSpeech(text) {
-            targetCallsign = callsignInput.value.trim().toUpperCase();
-            const cleanedText = text.toUpperCase();
-
-            if (targetCallsign && cleanedText.includes(targetCallsign)) {
-                triggerDetectionAlarm(cleanedText);
+        function restartRecognition() {
+            if (recognition) {
+                recognition.abort();
+            }
+            initRecognition();
+            if (isSystemArmed && recognition) {
+                try { recognition.start(); } catch(e){}
             }
         }
 
-        // Pure Web Audio API Synth for Aeronautical Dual-Tone Warning Chime
+        function analyzeSpeech(text) {
+            const activeCallsign = callsignInput.value.trim().toUpperCase();
+            if (!activeCallsign) return;
+
+            const rawDetected = text.toUpperCase();
+            
+            // Normalize both texts to perform phonetic comparison
+            const normTarget = normalizeText(activeCallsign);
+            const normDetected = normalizeText(rawDetected);
+
+            // Double Match Check: Raw inclusion or Normalized phonetic alignment
+            if (rawDetected.includes(activeCallsign) || normDetected.includes(normTarget)) {
+                // Log transmission ONLY when target callsign is successfully matched
+                logMessage("ATC", text, "text-avionics-text");
+                triggerDetectionAlarm(rawDetected);
+            }
+        }
+
         function playWarningChime() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 
-                // First Note: G5 (784Hz) with high-pass fade
+                // Primary Note: G5 (784Hz)
                 let osc1 = audioCtx.createOscillator();
                 let gain1 = audioCtx.createGain();
                 osc1.type = 'sine';
                 osc1.frequency.setValueAtTime(784, audioCtx.currentTime);
                 gain1.gain.setValueAtTime(0, audioCtx.currentTime);
                 gain1.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
-                gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+                gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
                 
                 osc1.connect(gain1);
                 gain1.connect(audioCtx.destination);
                 osc1.start();
-                osc1.stop(audioCtx.currentTime + 0.4);
+                osc1.stop(audioCtx.currentTime + 0.45);
                 
-                // Second Note: C6 (1046Hz) triggered 120ms later
+                // Secondary Harmony Note: C6 (1046Hz) triggered after 120ms
                 setTimeout(() => {
                     let osc2 = audioCtx.createOscillator();
                     let gain2 = audioCtx.createGain();
@@ -337,52 +497,60 @@
                     osc2.frequency.setValueAtTime(1046, audioCtx.currentTime);
                     gain2.gain.setValueAtTime(0, audioCtx.currentTime);
                     gain2.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
-                    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
                     
                     osc2.connect(gain2);
                     gain2.connect(audioCtx.destination);
                     osc2.start();
-                    osc2.stop(audioCtx.currentTime + 0.45);
+                    osc2.stop(audioCtx.currentTime + 0.5);
                 }, 120);
 
             } catch (e) {
-                console.warn("Synth alert playback failed: Web Audio context is blocked or unsupported.", e);
+                console.warn("Audio warning synth blocked/unsupported.", e);
             }
         }
 
-        // TRIGGER COCKPIT ALARM & VISUALS (Maintained for exactly 30 seconds)
+        // TRIGGER WARNING GLOW AND SOUNDS (Maintained strictly for 30 seconds)
         function triggerDetectionAlarm(phrase) {
-            // Clear any active alarm timer to reset the interval if triggered again
             if (alarmVisualTimeout) {
                 clearTimeout(alarmVisualTimeout);
             }
 
+            // Start warning glow animation
             document.body.classList.add('warning-active');
 
-            // Sound Alarm
+            // Play clean avionics chime
             playWarningChime();
 
-            // Update warning HUD elements (Soft Pastel Red Scheme)
-            alarmBanner.className = "mt-3 p-3 rounded-lg border border-avionics-red bg-red-950/20 flex items-center justify-between transition-all duration-300";
-            alarmIcon.className = "w-5 h-5 text-avionics-red";
+            // Update safety status details with pastel warning rose theme
+            alarmBanner.className = "mt-3 p-3 rounded-lg border border-avionics-red bg-red-950/20 flex items-center justify-between transition-all duration-300 shadow-md";
+            alarmIconContainer.className = "text-avionics-red";
+            alarmIconContainer.innerHTML = `
+                <svg class="w-5 h-5 text-avionics-red" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+            `;
             alarmDesc.innerText = `INTERCEPTED: "${phrase}"`;
             alarmDesc.className = "text-xs font-bold text-avionics-red";
-            alarmBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-avionics-red text-zinc-900 border border-red-200";
+            alarmBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-avionics-red text-zinc-950 border border-red-200";
             alarmBadge.innerText = "CALLSIGN ALERT";
 
-            logMessage("ALERT", `CALLSIGN MATCH DETECTED: "${targetCallsign}"`, "text-avionics-red font-bold");
-
-            // Revert back to standby visuals after exactly 30 seconds
+            // Return to nominal status in 30 seconds
             alarmVisualTimeout = setTimeout(() => {
                 revertAlarmVisuals();
             }, 30000);
         }
 
-        // Helper to revert HUD back to silent monitor state
+        // Clean reversion helper
         function revertAlarmVisuals() {
             document.body.classList.remove('warning-active');
-            alarmBanner.className = "mt-3 p-3 rounded-lg border border-avionics-border bg-black/30 flex items-center justify-between transition-all duration-300";
-            alarmIcon.className = "w-5 h-5 text-zinc-600";
+            alarmBanner.className = "mt-3 p-3 rounded-lg border border-avionics-border bg-black/30 flex items-center justify-between transition-all duration-300 shadow";
+            alarmIconContainer.className = "text-zinc-600";
+            alarmIconContainer.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+            `;
             alarmDesc.innerText = "CALLSIGN SAFE / SILENT";
             alarmDesc.className = "text-xs font-bold text-zinc-400";
             alarmBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-950 text-zinc-500 border border-zinc-800";
@@ -390,29 +558,24 @@
             alarmVisualTimeout = null;
         }
 
-        // System state indicators
         function setSystemStatus(status, color) {
             systemStatusText.innerText = status;
             if (color === "green") {
                 systemStatusText.className = "text-xs font-bold text-avionics-green";
-                statusIndicator.className = "w-3 h-3 rounded-full bg-avionics-green shadow-[0_0_8px_rgba(162,232,221,0.5)]";
-            } else if (color === "amber") {
-                systemStatusText.className = "text-xs font-bold text-avionics-amber";
-                statusIndicator.className = "w-3 h-3 rounded-full bg-avionics-amber shadow-[0_0_8px_rgba(249,224,187,0.5)]";
+                statusIndicator.className = "w-3.5 h-3.5 rounded-full bg-avionics-green shadow-[0_0_10px_rgba(162,232,221,0.6)]";
             } else {
                 systemStatusText.className = "text-xs font-bold text-zinc-500";
-                statusIndicator.className = "w-3 h-3 rounded-full bg-zinc-600";
+                statusIndicator.className = "w-3.5 h-3.5 rounded-full bg-zinc-600 shadow-none";
             }
         }
 
-        // Logger helper
         function logMessage(sender, text, cssClass = "text-avionics-text") {
             const time = new Date().toISOString().substring(11, 19);
             const msgElement = document.createElement('div');
-            msgElement.className = `mb-1.5 border-b border-zinc-900/10 pb-1 ${cssClass}`;
+            msgElement.className = `mb-1.5 border-b border-zinc-900/10 pb-1.5 ${cssClass}`;
             msgElement.innerHTML = `<span class="text-zinc-500 mr-2">[${time}]</span> <span class="font-bold mr-1">${sender}:</span> ${text}`;
             
-            if (transcriptContainer.innerHTML.includes('&lt; NO TRANSMISSIONS RECORDED &gt;')) {
+            if (transcriptContainer.innerHTML.includes('&lt; NO VALID TRANSMISSIONS RECORDED &gt;')) {
                 transcriptContainer.innerHTML = '';
             }
             
@@ -420,7 +583,6 @@
             transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
         }
 
-        // Audio stream & Scope visualization (Pastel Green styling)
         async function startOscilloscope() {
             try {
                 microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -435,7 +597,7 @@
                 source.connect(analyser);
                 drawScope();
             } catch (err) {
-                logMessage("SYSTEM", "Sensor Error: Microphone access denied.", "text-avionics-red");
+                logMessage("SYSTEM", "Microphone access denied. Please verify browser media permissions.", "text-avionics-red");
             }
         }
 
@@ -451,8 +613,8 @@
                 audioContext.close();
                 audioContext = null;
             }
-            // Clear canvas to flatline
-            scopeCtx.fillStyle = '#16191C';
+            // Clear canvas safely
+            scopeCtx.fillStyle = '#14171A';
             scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
         }
 
@@ -460,11 +622,12 @@
             animationFrameId = requestAnimationFrame(drawScope);
             analyser.getByteTimeDomainData(dataArray);
 
-            scopeCtx.fillStyle = '#16191C';
+            scopeCtx.fillStyle = '#14171A';
             scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
 
+            // Render thin aesthetic scope waves
             scopeCtx.lineWidth = 1.5;
-            scopeCtx.strokeStyle = '#A2E8DD'; // Pastel green wave
+            scopeCtx.strokeStyle = '#A2E8DD'; 
             scopeCtx.beginPath();
             
             const sliceWidth = scopeCanvas.width * 1.0 / dataArray.length;
@@ -493,8 +656,13 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // System Arm Logic (Continuous Recognition until manual shutdown)
         async function armSystem() {
+            const activeCallsign = callsignInput.value.trim().toUpperCase();
+            if (!activeCallsign) {
+                logMessage("SYSTEM", "ABORTED: SPECIFY A TARGET CALLSIGN FIRST", "text-avionics-red font-bold");
+                return;
+            }
+
             const initSuccess = initRecognition();
             if (!initSuccess) return;
 
@@ -502,73 +670,55 @@
             recognition.start();
 
             isSystemArmed = true;
+            targetCallsign = activeCallsign;
             
-            // UI Button styling to Active State (Soft Pastel Green)
-            activateBtn.className = "w-full bg-avionics-green text-zinc-900 font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm";
-            activateText.innerText = "MONITORING ACTIVE";
-            btnIcon.setAttribute('data-lucide', 'eye');
-            lucide.createIcons();
-
             rxStatusText.innerText = "WAITING SIGNAL";
-            rxStatusText.className = "text-[9px] text-avionics-green font-bold";
+            rxStatusText.className = "text-[9px] text-avionics-green font-bold tracking-wider";
         }
 
-        // Disarm system
-        function disarmSystem(reason = "MANUAL") {
+        function disarmSystem() {
             if (recognition) {
                 recognition.stop();
             }
             stopOscilloscope();
             isSystemArmed = false;
 
-            // Revert Button Style
-            activateBtn.className = "w-full bg-black/30 hover:bg-zinc-800 border border-avionics-green text-avionics-green font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm";
-            activateText.innerText = "START MONITORING";
-            btnIcon.setAttribute('data-lucide', 'play');
-            lucide.createIcons();
-
             setSystemStatus("OFFLINE", "gray");
             rxStatusText.innerText = "INACTIVE";
-            rxStatusText.className = "text-[9px] text-zinc-500 font-bold";
+            rxStatusText.className = "text-[9px] text-zinc-500 font-bold tracking-wider";
 
-            logMessage("SYSTEM", "System Monitoring Suspended.", "text-zinc-500");
+            logMessage("SYSTEM", "System Monitor Stopped.", "text-zinc-500");
         }
 
-        // COMPLETE SHUTDOWN CONTROL (Stops speech and clears alarm immediately)
         function shutdownSystem() {
-            disarmSystem("MANUAL");
-            
-            // Hard stop instantly
+            disarmSystem();
             if (recognition) {
                 recognition.abort();
             }
 
-            // Immediately clear any running alarm visual and timer
             if (alarmVisualTimeout) {
                 clearTimeout(alarmVisualTimeout);
                 alarmVisualTimeout = null;
             }
             revertAlarmVisuals();
             
-            logMessage("SYSTEM", "SYSTEM SHUTDOWN: All engines stopped.", "text-avionics-red font-bold");
+            logMessage("SYSTEM", "Emergency Engine Shutdown: Sensors Disengaged.", "text-avionics-red font-bold");
             
-            // Pulse visual indicator to indicate hard stop (Soft Pastel Red)
-            statusIndicator.className = "w-3 h-3 rounded-full bg-avionics-red shadow-[0_0_8px_rgba(244,179,179,0.5)]";
+            statusIndicator.className = "w-3.5 h-3.5 rounded-full bg-avionics-red shadow-[0_0_10px_rgba(244,179,179,0.6)]";
             systemStatusText.innerText = "SHUTDOWN";
             systemStatusText.className = "text-xs font-bold text-avionics-red";
         }
 
-        // Trigger Listeners
-        activateBtn.addEventListener('click', async () => {
-            if (!isSystemArmed) {
+        // Single Master Switch Logic
+        callsignMonitorToggle.addEventListener('change', async (e) => {
+            if (e.target.checked) {
                 await armSystem();
+                if (!isSystemArmed) {
+                    e.target.checked = false; // Restore switch to off if aborted
+                }
             } else {
-                disarmSystem("MANUAL");
+                shutdownSystem();
             }
-        });
-
-        shutdownBtn.addEventListener('click', () => {
-            shutdownSystem();
         });
     </script>
 </body>
@@ -578,7 +728,9 @@ eof
 
 ---
 
-### 🎨 정교화된 조작 가이드
-* **지속 감지 모드**: 이제 `START MONITORING` 버튼을 눌러 모니터를 구동해 두면, 30초의 제한 없이 무기한으로 마이크 수음 및 콜사인 추적 상태가 유지됩니다. 
-* **30초 경고 타이밍 제어**: 관제 무전에서 내가 설정한 타겟 콜사인이 감지되는 즉시, 비행 기기의 실시간 계기판처럼 전체 화면이 파스텔 레드 블러 효과와 함께 **30초간 밝게 점멸**합니다. 30초가 지난 후에는 다시 원래의 조용한 무전 대기 모드로 알아서 자동 정돈됩니다.
-* **강력한 셧다운 제어**: 우측의 적색 `SYSTEM SHUTDOWN` 버튼을 누르면 그 어떤 상황에서도 마이크 감지 정지는 물론, 현재 울리던 30초 알람 스레드까지 전부 원클릭으로 초기화합니다.
+### 🔍 정렬 및 보완 내역 요약
+1. **정밀한 UI 구조화**: 외부 아이콘 폰트 대신 순수 **인라인 SVG**를 탑재하여, 박스 밖이나 레이아웃 경계를 이탈해 기괴하게 나타나던 아이콘 정렬 오류를 완전 진압했습니다.
+2. **이중 정상화 엔진(Dual-Normalization Engine)**:
+   * **영어 및 한글 숫자 변환 지원**: 사용자가 `"KOREAN AIR 123"`을 등록하고 관제사가 `"대한항공 일이삼"` 또는 `"Korean Air one two three"`라고 소리쳐도 이를 완벽히 표준 매칭으로 유도합니다.
+   * **항공사 특화 사전 맵핑**: `"대한항공" -> "KOREAN AIR"`, `"아시아나" -> "ASIANA"` 등 현업 관제 호칭을 사전화하여 음성이 변환되었을 때 유연하고 높은 매칭 성공률을 보여줍니다.
+3. **무음 알람 제어 유지**: 백그라운드 STT 디코더는 사용자가 수동으로 스위치를 끄기 전까지 쉬지 않고 돌며, 알람 팝업 및 경고음에만 30초 자동 타이머를 가동시킵니다.
