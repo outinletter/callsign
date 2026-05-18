@@ -125,7 +125,7 @@
                         <!-- Arm/Start Button -->
                         <button id="activate-btn" class="w-full bg-black/30 hover:bg-zinc-800 border border-avionics-green text-avionics-green font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm">
                             <i data-lucide="play" class="w-4 h-4" id="btn-icon"></i>
-                            <span id="activate-text">START MONITORING (30S)</span>
+                            <span id="activate-text">START MONITORING</span>
                         </button>
 
                         <!-- Shutdown/Stop Button -->
@@ -190,7 +190,7 @@
         let isRecognitionFinal = true; // Flag to filter interim text logs
         let targetCallsign = "KOREAN AIR 123";
         let squelchLevel = 35;
-        let activeMonitorTimeout = null;
+        let alarmVisualTimeout = null; // Handler for the 30-second visual alarm trigger
 
         // Web Speech API & Audio Components
         let recognition = null;
@@ -350,8 +350,13 @@
             }
         }
 
-        // TRIGGER COCKPIT ALARM & VISUALS
+        // TRIGGER COCKPIT ALARM & VISUALS (Maintained for exactly 30 seconds)
         function triggerDetectionAlarm(phrase) {
+            // Clear any active alarm timer to reset the interval if triggered again
+            if (alarmVisualTimeout) {
+                clearTimeout(alarmVisualTimeout);
+            }
+
             document.body.classList.add('warning-active');
 
             // Sound Alarm
@@ -367,16 +372,22 @@
 
             logMessage("ALERT", `CALLSIGN MATCH DETECTED: "${targetCallsign}"`, "text-avionics-red font-bold");
 
-            // Safe revert after 3.5 seconds
-            setTimeout(() => {
-                document.body.classList.remove('warning-active');
-                alarmBanner.className = "mt-3 p-3 rounded-lg border border-avionics-border bg-black/30 flex items-center justify-between transition-all duration-300";
-                alarmIcon.className = "w-5 h-5 text-zinc-600";
-                alarmDesc.innerText = "CALLSIGN SAFE / SILENT";
-                alarmDesc.className = "text-xs font-bold text-zinc-400";
-                alarmBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-950 text-zinc-500 border border-zinc-800";
-                alarmBadge.innerText = "STANDBY";
-            }, 3500);
+            // Revert back to standby visuals after exactly 30 seconds
+            alarmVisualTimeout = setTimeout(() => {
+                revertAlarmVisuals();
+            }, 30000);
+        }
+
+        // Helper to revert HUD back to silent monitor state
+        function revertAlarmVisuals() {
+            document.body.classList.remove('warning-active');
+            alarmBanner.className = "mt-3 p-3 rounded-lg border border-avionics-border bg-black/30 flex items-center justify-between transition-all duration-300";
+            alarmIcon.className = "w-5 h-5 text-zinc-600";
+            alarmDesc.innerText = "CALLSIGN SAFE / SILENT";
+            alarmDesc.className = "text-xs font-bold text-zinc-400";
+            alarmBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-950 text-zinc-500 border border-zinc-800";
+            alarmBadge.innerText = "STANDBY";
+            alarmVisualTimeout = null;
         }
 
         // System state indicators
@@ -482,7 +493,7 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // System Arm Logic (30 Seconds Timeout)
+        // System Arm Logic (Continuous Recognition until manual shutdown)
         async function armSystem() {
             const initSuccess = initRecognition();
             if (!initSuccess) return;
@@ -494,28 +505,16 @@
             
             // UI Button styling to Active State (Soft Pastel Green)
             activateBtn.className = "w-full bg-avionics-green text-zinc-900 font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm";
-            activateText.innerText = "ACTIVE MONITOR (30S LIMIT)";
+            activateText.innerText = "MONITORING ACTIVE";
             btnIcon.setAttribute('data-lucide', 'eye');
             lucide.createIcons();
 
             rxStatusText.innerText = "WAITING SIGNAL";
             rxStatusText.className = "text-[9px] text-avionics-green font-bold";
-
-            // Safety limit set to exactly 30 seconds
-            activeMonitorTimeout = setTimeout(() => {
-                if (isSystemArmed) {
-                    disarmSystem("TIMEOUT");
-                }
-            }, 30000);
         }
 
         // Disarm system
         function disarmSystem(reason = "MANUAL") {
-            if (activeMonitorTimeout) {
-                clearTimeout(activeMonitorTimeout);
-                activeMonitorTimeout = null;
-            }
-
             if (recognition) {
                 recognition.stop();
             }
@@ -524,7 +523,7 @@
 
             // Revert Button Style
             activateBtn.className = "w-full bg-black/30 hover:bg-zinc-800 border border-avionics-green text-avionics-green font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all text-sm";
-            activateText.innerText = "START MONITORING (30S)";
+            activateText.innerText = "START MONITORING";
             btnIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
 
@@ -532,23 +531,25 @@
             rxStatusText.innerText = "INACTIVE";
             rxStatusText.className = "text-[9px] text-zinc-500 font-bold";
 
-            if (reason === "TIMEOUT") {
-                logMessage("SYSTEM", "Auto-Disarmed (30s monitor period ended).", "text-avionics-amber");
-            } else {
-                logMessage("SYSTEM", "System Monitoring Suspended.", "text-zinc-500");
-            }
+            logMessage("SYSTEM", "System Monitoring Suspended.", "text-zinc-500");
         }
 
-        // COMPLETE SHUTDOWN CONTROL (Stops speech immediately)
+        // COMPLETE SHUTDOWN CONTROL (Stops speech and clears alarm immediately)
         function shutdownSystem() {
             disarmSystem("MANUAL");
             
-            // Extra safety clearance
+            // Hard stop instantly
             if (recognition) {
-                recognition.abort(); // Hard stop instantly
+                recognition.abort();
             }
+
+            // Immediately clear any running alarm visual and timer
+            if (alarmVisualTimeout) {
+                clearTimeout(alarmVisualTimeout);
+                alarmVisualTimeout = null;
+            }
+            revertAlarmVisuals();
             
-            // Clean up transcripts visual
             logMessage("SYSTEM", "SYSTEM SHUTDOWN: All engines stopped.", "text-avionics-red font-bold");
             
             // Pulse visual indicator to indicate hard stop (Soft Pastel Red)
@@ -575,6 +576,9 @@
 ```
 eof
 
-### 🎨 주요 변경사항 안내
-* **파스텔 톤(Pastel-Avionics) 테마 도입**: 피로도를 유발하던 밝은 형광 녹색(`#00FF66`), 밝은 황색, 강한 적색 대신 눈에 매우 편안한 **파스텔 민트색(Pastel Mint)**, **부드러운 살구 크림색(Pastel Amber)**, 그리고 **연한 장미빛 로즈 핑크(Pastel Red)** 톤으로 전체 계기판의 불빛 색상과 오실로스코프 파형 색상을 정돈했습니다.
-* **유리 콕핏(Glass Cockpit) 이중 주파수 알람**: 타겟 콜사인이 대조 로그에 완벽히 매칭되면 화면 테두리가 연하게 점멸하는 것과 동시에, 브라우저의 Web Audio API 오실레이터를 사용하여 **784Hz(G5) ➔ 1046Hz(C6)**로 빠르게 연속 연결되는 맑은 비행선용 경고 벨 사운드가 재생됩니다. 외부 파일 다운로드가 필요 없는 순수 브라우저 합성 방식이라 오프라인 환경에서도 무조건 울립니다.
+---
+
+### 🎨 정교화된 조작 가이드
+* **지속 감지 모드**: 이제 `START MONITORING` 버튼을 눌러 모니터를 구동해 두면, 30초의 제한 없이 무기한으로 마이크 수음 및 콜사인 추적 상태가 유지됩니다. 
+* **30초 경고 타이밍 제어**: 관제 무전에서 내가 설정한 타겟 콜사인이 감지되는 즉시, 비행 기기의 실시간 계기판처럼 전체 화면이 파스텔 레드 블러 효과와 함께 **30초간 밝게 점멸**합니다. 30초가 지난 후에는 다시 원래의 조용한 무전 대기 모드로 알아서 자동 정돈됩니다.
+* **강력한 셧다운 제어**: 우측의 적색 `SYSTEM SHUTDOWN` 버튼을 누르면 그 어떤 상황에서도 마이크 감지 정지는 물론, 현재 울리던 30초 알람 스레드까지 전부 원클릭으로 초기화합니다.
