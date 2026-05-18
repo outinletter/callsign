@@ -274,6 +274,7 @@
         let dataArray = null;
         let animationFrameId = null;
         let microphoneStream = null;
+        let lastLoggedText = ""; // 중복 로그 방지용
 
         // UI DOM Elements
         const callsignMonitorToggle = document.getElementById('callsign-monitor-toggle');
@@ -340,7 +341,7 @@
         const numbersMap = {
             'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
             '영': '0', '공': '0', '일': '1', '하나': '1', '이': '2', '둘': '2', '삼': '3', '셋': '3', '사': '4', '넷': '4', '오': '5', '다섯': '5',
-            '육': '6', '여섯': '6', '칠': '7', '일곱': '7', '팔': '8', '여덟': '8', '구': '9', '아홉': '9', '십': '10', '공': '0'
+            '육': '6', '여섯': '6', '칠': '7', '일곱': '7', '팔': '8', '여덟': '8', '구': '9', '아홉': '9', '십': '10'
         };
 
         const phoneticMap = {
@@ -384,6 +385,11 @@
             return normalized;
         }
 
+        // Fast-speech optimized comparison: Strips all whitespace to match continuous continuous pronunciation
+        function cleanForComparison(text) {
+            return normalizeText(text).replace(/\s+/g, '');
+        }
+
         function initRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -393,7 +399,7 @@
 
             recognition = new SpeechRecognition();
             recognition.continuous = true;
-            recognition.interimResults = true;
+            recognition.interimResults = true; // Enable real-time analysis while speaking
             recognition.lang = selectedLang;
 
             recognition.onstart = () => {
@@ -413,16 +419,18 @@
                     }
                 }
 
+                // HIGH-SPEED INTERCEPT: Check interim results instantly to eliminate pronunciation delay
                 if (interimTranscript.trim().length > 0) {
                     rxStatusText.innerText = "DECODING SIGNAL...";
                     rxStatusText.className = "text-[9px] text-avionics-amber font-bold tracking-wider";
+                    analyzeSpeechInterim(interimTranscript);
                 }
 
-                // Process ONLY fully completed/finalized segments
+                // Process ONLY fully completed/finalized segments for logging to prevent duplication
                 if (finalTranscript.trim().length > 0) {
                     rxStatusText.innerText = "WAITING SIGNAL";
                     rxStatusText.className = "text-[9px] text-avionics-green font-bold tracking-wider";
-                    analyzeSpeech(finalTranscript);
+                    analyzeSpeechFinal(finalTranscript);
                 }
             };
 
@@ -453,21 +461,38 @@
             }
         }
 
-        function analyzeSpeech(text) {
+        // Instant response triggered directly from continuous vocal flow
+        function analyzeSpeechInterim(text) {
             const activeCallsign = callsignInput.value.trim().toUpperCase();
             if (!activeCallsign) return;
 
             const rawDetected = text.toUpperCase();
-            
-            // Normalize both texts to perform phonetic comparison
-            const normTarget = normalizeText(activeCallsign);
-            const normDetected = normalizeText(rawDetected);
+            const cleanTarget = cleanForComparison(activeCallsign);
+            const cleanDetected = cleanForComparison(rawDetected);
 
-            // Double Match Check: Raw inclusion or Normalized phonetic alignment
-            if (rawDetected.includes(activeCallsign) || normDetected.includes(normTarget)) {
-                // Log transmission ONLY when target callsign is successfully matched
-                logMessage("ATC", text, "text-avionics-text");
+            // Match based on raw value or space-stripped pronunciation string
+            if (rawDetected.includes(activeCallsign) || 
+                (cleanTarget.length > 0 && cleanDetected.includes(cleanTarget))) {
                 triggerDetectionAlarm(rawDetected);
+            }
+        }
+
+        // Finalized validation to update the ATC text logs
+        function analyzeSpeechFinal(text) {
+            if (text === lastLoggedText) return;
+            lastLoggedText = text;
+
+            const activeCallsign = callsignInput.value.trim().toUpperCase();
+            if (!activeCallsign) return;
+
+            const rawDetected = text.toUpperCase();
+            const cleanTarget = cleanForComparison(activeCallsign);
+            const cleanDetected = cleanForComparison(rawDetected);
+
+            if (rawDetected.includes(activeCallsign) || 
+                (cleanTarget.length > 0 && cleanDetected.includes(cleanTarget))) {
+                logMessage("ATC", text, "text-avionics-text");
+                triggerDetectionAlarm(rawDetected); // Reinforce alert state
             }
         }
 
@@ -728,9 +753,6 @@ eof
 
 ---
 
-### 🔍 정렬 및 보완 내역 요약
-1. **정밀한 UI 구조화**: 외부 아이콘 폰트 대신 순수 **인라인 SVG**를 탑재하여, 박스 밖이나 레이아웃 경계를 이탈해 기괴하게 나타나던 아이콘 정렬 오류를 완전 진압했습니다.
-2. **이중 정상화 엔진(Dual-Normalization Engine)**:
-   * **영어 및 한글 숫자 변환 지원**: 사용자가 `"KOREAN AIR 123"`을 등록하고 관제사가 `"대한항공 일이삼"` 또는 `"Korean Air one two three"`라고 소리쳐도 이를 완벽히 표준 매칭으로 유도합니다.
-   * **항공사 특화 사전 맵핑**: `"대한항공" -> "KOREAN AIR"`, `"아시아나" -> "ASIANA"` 등 현업 관제 호칭을 사전화하여 음성이 변환되었을 때 유연하고 높은 매칭 성공률을 보여줍니다.
-3. **무음 알람 제어 유지**: 백그라운드 STT 디코더는 사용자가 수동으로 스위치를 끄기 전까지 쉬지 않고 돌며, 알람 팝업 및 경고음에만 30초 자동 타이머를 가동시킵니다.
+### ⏱️ 개선 결과 요약
+* **지연 시간 최소화**: 말하는 도중에 단어가 맞춰지면 즉각적으로 붉은색 파스텔 점멸 알람과 이중 경보 부저음이 작동합니다.
+* **공백 유연성**: `"KOREAN AIR 123"`을 빠르게 발음하여 붙어버린 `"koreanair123"` 소리조차도 한 치의 오차 없이 완벽하게 걸러냅니다.
